@@ -1,6 +1,8 @@
 const HttpError = require('../models/http-error');
 const { v4: uuidv4 } = require('uuid');
-const {validationResult} = require('express-validator')
+const { validationResult } = require('express-validator');
+
+const getCoordsForAddress = require('../util/location');
 
 let DUMMY_PACES = [
   {
@@ -33,7 +35,7 @@ const getPlacesByUserId = (req, res, next) => {
   const userId = req.params.uid;
   const places = DUMMY_PACES.filter((p) => p.creator === userId);
 
-  if (!places || places.length === 0 ) {
+  if (!places || places.length === 0) {
     return next(
       new HttpError('Could not find a places for the provided user id', 404)
     );
@@ -42,14 +44,23 @@ const getPlacesByUserId = (req, res, next) => {
   res.json({ places });
 };
 
-const createPlace = (req, res, next) => {
-  const error = validationResult(req)
-  if(!error.isEmpty()) {
-    console.log('error', error)
-    throw new HttpError('Invalid inputs passed, please check your data.', 422)
+const createPlace = async (req, res, next) => {
+  const error = validationResult(req);
+  if (!error.isEmpty()) {
+    return next(
+      new HttpError('Invalid inputs passed, please check your data.', 422)
+    );
   }
-   
-  const { title, description, coordinates, address, creator } = req.body;
+
+  const { title, description, address, creator } = req.body;
+
+  let coordinates;
+  try {
+    coordinates = await getCoordsForAddress(address);
+  } catch (e) {
+    return next(e)
+  }
+
   const createdPlace = {
     id: uuidv4(),
     title,
@@ -65,6 +76,11 @@ const createPlace = (req, res, next) => {
 };
 
 const updatePlaceById = (req, res, next) => {
+  const error = validationResult(req);
+  if (!error.isEmpty()) {
+    throw new HttpError('Invalid inputs passed, please check your data.', 422);
+  }
+
   const { title, description } = req.body;
   const placeId = req.params.pid;
 
@@ -80,6 +96,9 @@ const updatePlaceById = (req, res, next) => {
 
 const deletePlace = (req, res, next) => {
   const placeId = req.params.pid;
+  if (DUMMY_PACES.find((p) => p.id === placeId)) {
+    return next(new HttpError('Could not find a places for that  id', 404));
+  }
   DUMMY_PACES = DUMMY_PACES.filter((p) => p.id !== placeId);
   res.status(200).json({ message: 'Deleted place.' });
 };

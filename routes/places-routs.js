@@ -19,13 +19,20 @@ router.post(
   '/',
   [
     check('title').not().isEmpty(),
-    check('descriptions ').isLength({ min: 5 }),
+    check('description').isLength({ min: 5 }),
     check('address').not().isEmpty(),
   ],
   createPlace
 );
 
-router.patch('/:pid', updatePlaceById);
+router.patch(
+  '/:pid',
+  [
+    check('title').not().isEmpty(), 
+    check('description').isLength({ min: 5 })
+  ],
+  updatePlaceById
+);
 
 router.delete('/:pid', deletePlace);
 
